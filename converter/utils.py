@@ -63,4 +63,4 @@ def serialize_json(obj):
             obj = obj - obj.utcoffset()
         millis = int(calendar.timegm(obj.timetuple()) * 1000 + obj.microsecond / 1000)
         return millis
-    return str(obj)
+    return str(obj, encoding='latin-1')

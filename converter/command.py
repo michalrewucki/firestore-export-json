@@ -119,36 +119,41 @@ def process_files(
 def process_file(source_dir: str, dest_dir: str, no_check_crc: bool, filename: str):
     if not filename.startswith("output-"):
         return
+    print(f"Processing file: {filename}")
     json_tree: Dict = {}
     in_file = os.path.join(source_dir, filename)
-
-    with open(in_file, "rb") as raw:
-        reader = records.RecordsReader(raw, no_check_crc=no_check_crc)
-        for record in reader:
-            entity_proto = entity_pb2.EntityProto()
-            entity_proto.ParseFromString(record)
-            ds_entity = datastore.Entity.FromPb(entity_proto)
-            data = {}
-            for name, value in list(ds_entity.items()):
-                if isinstance(value, EmbeddedEntity):
-                    dt: Dict = {}
-                    data[name] = embedded_entity_to_dict(value, dt)
-                else:
-                    data[name] = value
-
-            data_dict = get_dest_dict(ds_entity.key(), json_tree)
-            data_dict.update(data)
-
     out_file_path = os.path.join(dest_dir, filename + ".json")
-    with open(out_file_path, "w", encoding="utf8") as out:
-        out.write(
-            json.dumps(json_tree, default=serialize_json, ensure_ascii=False, indent=2)
-        )
+    x = 0
+
+    with open(out_file_path, "w") as out:
+        out.write("[")
+
+        with open(in_file, "rb") as raw:
+            reader = records.RecordsReader(raw, no_check_crc=no_check_crc)
+            for record in reader:
+                if (x > 0):
+                    out.write(",")
+                entity_proto = entity_pb2.EntityProto()
+                entity_proto.ParseFromString(record)
+                ds_entity = datastore.Entity.FromPb(entity_proto)
+                data = {}
+                for name, value in list(ds_entity.items()):
+                    if isinstance(value, EmbeddedEntity):
+                        dt: Dict = {}
+                        data[name] = embedded_entity_to_dict(value, dt)
+                    else:
+                        data[name] = value
+
+                data["id"] = ds_entity.key().id_or_name();
+                out.write(json.dumps(data, default=serialize_json, indent=2))
+
+                x = x + 1
+        out.write("]")
     num_files_processed.value += 1
     if num_files.value > 0:
         print(
-            f"progress: {num_files_processed.value}/{num_files.value} {num_files_processed.value/num_files.value*100}%"
-        )
+            f"progress: {num_files_processed.value}/{num_files.value} {num_files_processed.value/num_files.value*100}%")
+
 
 
 if __name__ == "__main__":
